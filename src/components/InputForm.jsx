@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 const InputForm = ({ onPlaylistSubmit, isLoading }) => {
 
-    const [input, setInput] = useState('PLuJllDsJjN9LaDwTCzI_MIaJ0v4oz6xQX');
+    const [input, setInput] = useState('');
 
     const handleSubmit = (e) => {
         e.preventDefault();
