@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 // Firebase imports removed, as we are now using localStorage
 
 // Import components and hooks
@@ -8,7 +8,7 @@ import PlaylistView from './components/PlaylistView';
 import PlayerControls from './components/PlayerControls';
 
 // --- 1. GLOBAL CONFIG & INITIALIZATION ---
-const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY; 
+const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
 const MAX_SONGS_PER_FETCH = 3; // Fetch only 3 songs initially
 const POINTS_TO_UNLOCK_NEXT_BATCH = 3;
 const LOCAL_STORAGE_KEY = 'ludio_quest_progress';
@@ -20,29 +20,57 @@ const App = () => {
     const [nextPageToken, setNextPageToken] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [points, setPoints] = useState(0);
-    const [maxSongs] = useState(40); 
+    const [maxSongs] = useState(40);
     const [savedPlaylistId, setSavedPlaylistId] = useState(''); // New state for showing "Continue Quest"
+    const [clickEffects, setClickEffects] = useState([]); // Visual effects for gathering
+    const [visibleSongsLimit, setVisibleSongsLimit] = useState(3); // Start with 3 songs
 
     const playerState = usePlayerState(songs);
     const currentSong = songs[playerState.currentSongIndex];
 
     // --- 4.2. GAMIFICATION LOGIC (XP accumulation) ---
-    
-    // Function for manual/global click gain
-    const manualPointGain = () => {
+
+    // Function for manual "Gather" gain (Global Click)
+    const handleGlobalClick = (e) => {
         // Only allow point gain if a playlist is actually loaded
         if (songs.length > 0) {
-             setPoints(p => p + 1);
+            setPoints(p => p + 1);
+
+            // Add visual effect
+            const id = Date.now();
+            const x = e.clientX;
+            const y = e.clientY;
+            setClickEffects(prev => [...prev, { id, x, y }]);
+
+            // Remove effect after animation
+            setTimeout(() => {
+                setClickEffects(prev => prev.filter(effect => effect.id !== id));
+            }, 1000);
         }
     };
 
     useEffect(() => {
-        // When a song ends, grant 1 point and auto-play the next track
+        // When a song ends, grant 20 points and auto-play the next track
         if (playerState.playerStatus === 'ENDED') {
-            setPoints(p => p + 1);
+            setPoints(p => p + 20);
             playerState.nextVideo();
         }
     }, [playerState.playerStatus, playerState.nextVideo]);
+
+    // Helper to parse ISO 8601 duration
+    const parseDuration = (duration) => {
+        if (!duration) return "0:00";
+        const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+        const hours = (match[1] || '').replace('H', '');
+        const minutes = (match[2] || '').replace('M', '');
+        const seconds = (match[3] || '').replace('S', '');
+
+        let result = '';
+        if (hours) result += hours + ':';
+        result += (minutes || '0').padStart(hours ? 2 : 1, '0') + ':';
+        result += (seconds || '0').padStart(2, '0');
+        return result;
+    };
 
     // --- 4.3. DATA FETCHING LOGIC ---
 
@@ -83,8 +111,9 @@ const App = () => {
                 title: item.snippet.title,
                 channelTitle: item.snippet.channelTitle,
                 thumbnail: item.snippet.thumbnails?.default?.url || 'https://placehold.co/48x48/1e293b/a8a29e?text=No+Art',
+                duration: item.contentDetails.endAt ? "Live" : item.contentDetails.duration ? parseDuration(item.contentDetails.duration) : "??:??"
             }));
-            
+
             // CRITICAL FIX: Use functional update for 'songs' to avoid dependency loop
             setSongs(prevSongs => {
                 const updatedSongs = token ? [...prevSongs, ...newSongs] : newSongs;
@@ -96,7 +125,7 @@ const App = () => {
 
             // Play video only if it's the first batch being fetched
             if (!token && newSongs.length > 0) {
-                // Must use the latest playerState closure (which is why we keep it in deps for the linter, 
+                // Must use the latest playerState closure (which is why we keep it in deps for the linter,
                 // but the stability fix above is the primary loop breaker)
                 playerState.playVideo(0);
             }
@@ -106,8 +135,8 @@ const App = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [playerState]); 
-    // IMPORTANT: The dependency [playerState] is technically needed for playerState.playVideo. 
+    }, [playerState]);
+    // IMPORTANT: The dependency [playerState] is technically needed for playerState.playVideo.
     // The previous state update fixes break the loop, but this dependency must remain for correct playback.
 
 
@@ -117,16 +146,20 @@ const App = () => {
     useEffect(() => {
         const loadInitialData = async () => {
             const savedProgress = localStorage.getItem(LOCAL_STORAGE_KEY);
-            
+
             if (savedProgress) {
                 try {
                     const data = JSON.parse(savedProgress);
                     setPoints(data.points || 0);
-                    
+
                     // FIX: ONLY load points and saved ID into the temporary state variable.
                     // DO NOT call fetchBatch here, forcing the InputForm to show first.
                     if (data.playlistId) {
                         setSavedPlaylistId(data.playlistId);
+                    }
+
+                    if (data.visibleSongsLimit) {
+                        setVisibleSongsLimit(data.visibleSongsLimit);
                     }
 
                 } catch (e) {
@@ -135,14 +168,14 @@ const App = () => {
                 }
             }
             // Set loading state to false only after initial sync is done.
-            setIsLoading(false); 
+            setIsLoading(false);
         };
 
         // Start the loading sequence immediately
         setIsLoading(true);
         loadInitialData();
 
-    }, [fetchBatch]); // fetchBatch is stable enough now not to loop
+    }, []); // FIXED: Empty dependency array to run only once on mount
 
     // --- 4.5. LOCAL STORAGE PERSISTENCE (SAVE) ---
 
@@ -154,9 +187,10 @@ const App = () => {
             points: points,
             playlistId: playlistId,
             nextPageToken: nextPageToken,
+            visibleSongsLimit: visibleSongsLimit
         });
         localStorage.setItem(LOCAL_STORAGE_KEY, dataToSave);
-    }, [points, nextPageToken, playlistId]);
+    }, [points, nextPageToken, playlistId, visibleSongsLimit]);
 
 
     // Handler for initial playlist submit (New Quest)
@@ -165,13 +199,14 @@ const App = () => {
         setSongs([]);
         setNextPageToken(null);
         setPoints(0);
+        setVisibleSongsLimit(3); // Reset limit
         setSavedPlaylistId(''); // Clear any saved quest flag
         // Request the first batch of 3 songs
         fetchBatch(id);
         // Clear local storage when starting a new playlist
         localStorage.removeItem(LOCAL_STORAGE_KEY);
     };
-    
+
     // Handler for resuming the quest
     const handleResumeQuest = () => {
         if (savedPlaylistId) {
@@ -181,13 +216,20 @@ const App = () => {
     };
 
 
-    // Handler for the "Unlock Next Batch" button
-    const unlockNextBatch = () => {
-        // Correct calculation: check if current points are enough for the next expected batch number
-        const requiredPoints = POINTS_TO_UNLOCK_NEXT_BATCH * (Math.floor(songs.length / MAX_SONGS_PER_FETCH) + 1);
-        
-        if (points >= requiredPoints && nextPageToken && songs.length < maxSongs) {
-            fetchBatch(playlistId, nextPageToken);
+    // Handler for "Unlock Next Song" (Redeem 20 points)
+    const unlockNextSong = () => {
+        const COST_PER_SONG = 20;
+
+        if (points >= COST_PER_SONG) {
+            setPoints(p => p - COST_PER_SONG); // Deduct points
+            setVisibleSongsLimit(prev => {
+                const newLimit = prev + 1;
+                // If we need more songs than currently loaded, fetch next batch
+                if (newLimit > songs.length && nextPageToken) {
+                    fetchBatch(playlistId, nextPageToken);
+                }
+                return newLimit;
+            });
         }
     };
 
@@ -196,120 +238,121 @@ const App = () => {
     const showInputForm = songs.length === 0 && !isLoading;
 
     return (
-        // GLOBAL CLICK XP FIX: Added onClick={manualPointGain} to the main div
-        <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center p-4 sm:p-8 font-inter" onClick={manualPointGain}>
-            {/* CDN/JSX WARNING FIX: Changed <style jsx global> to standard <style> */}
+        <div
+            className="min-h-screen bg-slate-900 text-slate-200 flex flex-col items-center p-4 sm:p-8 font-inter overflow-hidden relative"
+            onClick={handleGlobalClick} // Global Click Handler
+        >
             <style>{`
-                /* Custom theme colors and shadows */
-                .font-inter { font-family: 'Inter', sans-serif; }
-                .text-neon-green { color: #00ffaa; } /* Updated to a brighter cyberpunk green */
-                .bg-neon-green { background-color: #00ffaa; }
-                .shadow-neon { box-shadow: 0 0 8px rgba(0, 255, 170, 0.7), 0 0 15px rgba(0, 255, 170, 0.4); }
-                .text-glitch { 
-                    animation: glitch 1.5s infinite alternate;
-                }
-                body {
-                    background: radial-gradient(circle at top left, #0d0d0d, #000);
-                }
-                /* IMPORTANT: Prevent XP click from affecting input elements */
-                input, button, a { pointer-events: auto; }
+                .font-playfair { font-family: 'Playfair Display', serif; }
                 
-                .controls button {
-                    transition: transform 0.2s, box-shadow 0.2s;
+                /* Floating +1 Animation */
+                @keyframes floatUp {
+                    0% { transform: translateY(0) scale(1); opacity: 1; }
+                    100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
                 }
-                .controls button:hover {
-                    transform: scale(1.05);
-                }
-                
-                @keyframes pulse-neon {
-                    0%, 100% { opacity: 1; text-shadow: 0 0 5px #00ffaa, 0 0 10px #00ffaa; }
-                    50% { opacity: 0.5; text-shadow: none; }
-                }
-                @keyframes spin {
-                  0% { transform: rotate(0deg); }
-                  100% { transform: rotate(360deg); }
+                .float-animation {
+                    animation: floatUp 0.8s ease-out forwards;
                 }
             `}</style>
-            
-            <header className="text-center mb-10">
-                <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white text-glitch">
-                    🎧 LUDIO (YouTube Music Quest)
+
+            {/* Floating Click Effects */}
+            {clickEffects.map(effect => (
+                <div
+                    key={effect.id}
+                    className="fixed text-cyan-400 font-bold text-2xl pointer-events-none float-animation z-50"
+                    style={{ left: effect.x, top: effect.y }}
+                >
+                    +1
+                </div>
+            ))}
+
+            <header className="text-center mb-10 z-10 pointer-events-none">
+                <h1 className="text-5xl sm:text-6xl font-playfair font-bold tracking-wide text-slate-100 drop-shadow-lg">
+                    LUDIO
                 </h1>
-                <p className="text-gray-400 mt-2 text-sm font-mono">
-                    //SYSTEM/STATUS: LOCAL DATA PERSISTENCE ENABLED
+                <p className="text-cyan-400/80 mt-3 text-sm tracking-widest uppercase">
+                    Natural Harmony Quest
                 </p>
             </header>
 
             {/* Hidden IFrame Player (Required element for the YouTube API hook) */}
             <div id="youtube-player-iframe" className="hidden"></div>
 
-            {/* EXP POINTS DISPLAY (Bottom Right Corner) */}
-            <div className="fixed bottom-4 right-4 z-40 p-3 bg-gray-800 border border-neon-green rounded-lg shadow-neon text-right pointer-events-auto">
-                <p className="text-sm font-mono text-gray-400">QUEST XP:</p>
-                <p className="text-xl font-bold text-neon-green">{points} POINTS</p>
+            {/* EXP POINTS DISPLAY (Top Right) */}
+            <div className="fixed top-6 right-6 z-40 flex items-center gap-3 bg-slate-800/80 backdrop-blur-md border border-slate-700 px-4 py-2 rounded-full shadow-lg pointer-events-none">
+                <div className="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
+                <div className="text-right">
+                    <p className="text-xs text-cyan-400 font-bold tracking-wider">ESSENCE</p>
+                    <p className="text-xl font-playfair text-slate-100">{points}</p>
+                </div>
             </div>
 
 
             {/* Display error message if API Key is missing */}
             {(!YOUTUBE_API_KEY || YOUTUBE_API_KEY === "PASTE_YOUR_RESTRICTED_API_KEY_HERE") && (
-                 <div className="text-red-500 font-bold p-4 bg-red-900/50 rounded-lg max-w-lg text-center">
+                <div className="text-red-400 font-bold p-4 bg-red-900/50 border border-red-800 rounded-lg max-w-lg text-center mb-8">
                     ACCESS DENIED: Please update your VITE_YOUTUBE_API_KEY in the .env file.
-                 </div>
+                </div>
             )}
 
             {showInputForm && (
-                <>
-                    <InputForm 
-                        onPlaylistSubmit={handlePlaylistSubmit} 
-                        isLoading={isLoading} 
+                <div className="z-10 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                    <InputForm
+                        onPlaylistSubmit={handlePlaylistSubmit}
+                        isLoading={isLoading}
                     />
-                    
+
                     {savedPlaylistId && (
-                        <div className="mt-6 p-4 bg-gray-800 border border-yellow-500/50 rounded-lg text-center">
-                            <p className="text-yellow-400 mb-3 font-mono">
-                                PREVIOUS DATA FOUND: Continue Quest {savedPlaylistId.substring(0, 8)}...?
+                        <div className="mt-8 p-6 bg-slate-800/50 backdrop-blur-sm border border-cyan-500/30 rounded-xl text-center shadow-xl">
+                            <p className="text-cyan-200/80 mb-4 font-playfair italic text-lg">
+                                "The journey continues..."
                             </p>
                             <button
                                 onClick={handleResumeQuest}
-                                className="bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg font-bold hover:bg-yellow-400 transition-colors"
+                                className="bg-cyan-600 text-white px-8 py-3 rounded-full font-bold hover:bg-cyan-500 transition-all transform hover:scale-105 shadow-lg shadow-cyan-900/20"
                             >
-                                RESUME QUEST
+                                Resume Quest
                             </button>
                         </div>
                     )}
-                </>
+                </div>
             )}
-            
+
             {/* Show Player UI if we have songs and are not showing the Input Form */}
             {songs.length > 0 && !showInputForm && (
-                <>
+                <div className="w-full max-w-4xl flex flex-col items-center z-10 gap-8" onClick={(e) => e.stopPropagation()}>
+
                     <PlaylistView
                         songs={songs}
+                        visibleSongsLimit={visibleSongsLimit}
                         onSongClick={playerState.playVideo}
                         currentSongIndex={playerState.currentSongIndex}
-                        unlockNextBatch={unlockNextBatch}
+                        unlockNextSong={unlockNextSong}
                         points={points}
-                        maxPoints={maxSongs}
-                        nextPageToken={nextPageToken} // Pass token to check if next batch is available
-                        requiredPoints={POINTS_TO_UNLOCK_NEXT_BATCH * (Math.floor(songs.length / MAX_SONGS_PER_FETCH))}
+                        maxSongs={maxSongs}
                     />
-                    <PlayerControls
-                        isPlaying={playerState.playerStatus === 'PLAYING'}
-                        togglePlayPause={playerState.togglePlayPause}
-                        nextVideo={playerState.nextVideo}
-                        prevVideo={playerState.prevVideo}
-                        currentSong={currentSong}
-                        playerStatus={playerState.playerStatus}
-                    />
-                </>
+
+                    <div className="fixed bottom-0 left-0 w-full bg-slate-900/95 backdrop-blur-md border-t border-slate-800 pt-6 pb-6 px-4 z-50 pointer-events-auto shadow-[0_-5px_20px_rgba(0,0,0,0.2)]">
+                        <PlayerControls
+                            isPlaying={playerState.playerStatus === 'PLAYING'}
+                            togglePlayPause={playerState.togglePlayPause}
+                            nextVideo={playerState.nextVideo}
+                            prevVideo={playerState.prevVideo}
+                            currentSong={currentSong}
+                            playerStatus={playerState.playerStatus}
+                            currentTime={playerState.currentTime}
+                            duration={playerState.duration}
+                        />
+                    </div>
+                </div>
             )}
 
             {isLoading && (
-                <div className="fixed top-0 left-0 w-full h-full bg-black/90 flex flex-col items-center justify-center z-50">
-                    <div className="text-neon-green text-3xl font-mono" style={{ animation: 'pulse-neon 1s infinite alternate' }}>
-                        LOADING QUEST DATA... PLEASE STAND BY
+                <div className="fixed top-0 left-0 w-full h-full bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+                    <div className="text-cyan-200 text-2xl font-playfair italic animate-pulse">
+                        Attuning to the frequency...
                     </div>
-                    <div className="w-10 h-10 border-4 border-neon-green border-t-transparent rounded-full mt-4" style={{ animation: 'spin 1s linear infinite' }}></div>
+                    <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-400 rounded-full mt-6 animate-spin"></div>
                 </div>
             )}
         </div>

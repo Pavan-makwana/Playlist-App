@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 // Component for user input and initial loading
 const InputForm = ({ onPlaylistSubmit, isLoading }) => {
     // Default ID for easy testing
-    const [input, setInput] = useState('PLuJllDsJjN9LaDwTCzI_MIaJ0v4oz6xQX'); 
+    const [input, setInput] = useState('PLuJllDsJjN9LaDwTCzI_MIaJ0v4oz6xQX');
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -12,28 +12,34 @@ const InputForm = ({ onPlaylistSubmit, isLoading }) => {
             onPlaylistSubmit(input.trim());
         } else {
             // Using alert() is generally avoided, but for simple user feedback in a demo, it's quick.
-            alert('Error: Please enter a valid YouTube Playlist ID (e.g., PL...).'); 
+            alert('Error: Please enter a valid YouTube Playlist ID (e.g., PL...).');
         }
     };
 
     return (
-        <div className="p-8 bg-gray-800/50 rounded-xl shadow-lg border border-gray-700/50 w-full max-w-sm">
-            <h2 className="text-xl font-bold mb-4 text-neon-green">System Login</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Enter YouTube Playlist ID (PL...)"
-                    className="w-full px-4 py-2 bg-gray-900 border border-neon-green/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-neon-green/80"
-                    disabled={isLoading}
-                />
+        <div className="p-8 bg-slate-800/50 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-700/50 w-full max-w-md mx-auto transform transition-all hover:border-cyan-500/40">
+            <h2 className="text-2xl font-playfair font-bold mb-6 text-slate-100 text-center tracking-wide">
+                Begin Your Journey
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="relative group">
+                    <input
+                        type="text"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder="Enter YouTube Playlist ID (PL...)"
+                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600/50 rounded-lg text-cyan-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 transition-all font-mono text-sm"
+                        disabled={isLoading}
+                    />
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan-500/20 to-transparent opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-500"></div>
+                </div>
+
                 <button
                     type="submit"
-                    className="w-full py-3 bg-neon-green text-gray-900 font-extrabold rounded-lg shadow-neon hover:bg-white transition duration-200 disabled:opacity-50"
+                    className="w-full py-3 bg-cyan-600 text-white font-bold tracking-wider rounded-lg shadow-lg hover:bg-cyan-500 hover:shadow-cyan-500/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                     disabled={isLoading}
                 >
-                    {isLoading ? 'INITIATING...' : 'LOAD QUEST DATA'}
+                    {isLoading ? 'ATTUNING...' : 'EMBARK'}
                 </button>
             </form>
         </div>

@@ -82,17 +82,32 @@ const usePlayerState = (songs) => {
 
     // Skips to the next video in the playlist
     const nextVideo = useCallback(() => {
-        if (playerRef.current) {
-            playerRef.current.nextVideo();
+        if (currentSongIndex < songs.length - 1) {
+            playVideo(currentSongIndex + 1);
         }
-    }, []);
+    }, [currentSongIndex, songs, playVideo]);
 
     // Skips to the previous video in the playlist
     const prevVideo = useCallback(() => {
-        if (playerRef.current) {
-            playerRef.current.previousVideo();
+        if (currentSongIndex > 0) {
+            playVideo(currentSongIndex - 1);
         }
-    }, []);
+    }, [currentSongIndex, playVideo]);
+
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+
+    // Polling for current time and duration
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (playerRef.current && playerStatus === 'PLAYING') {
+                setCurrentTime(playerRef.current.getCurrentTime());
+                setDuration(playerRef.current.getDuration());
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [playerStatus]);
 
     return {
         playerStatus,
@@ -101,7 +116,9 @@ const usePlayerState = (songs) => {
         togglePlayPause,
         nextVideo,
         prevVideo,
-        playerRef
+        playerRef,
+        currentTime,
+        duration
     };
 };
 
