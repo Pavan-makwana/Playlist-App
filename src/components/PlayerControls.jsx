@@ -1,6 +1,5 @@
 import React from 'react';
 
-// Component for the Player Controls (The HUD)
 const PlayerControls = ({ isPlaying, togglePlayPause, nextVideo, prevVideo, currentSong, playerStatus, currentTime, duration }) => {
     if (playerStatus === 'UNINITIALIZED') return null;
 

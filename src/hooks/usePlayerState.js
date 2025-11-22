@@ -54,7 +54,8 @@ const usePlayerState = (songs) => {
         // Expose to the global window object as required by the YT API
         window.onYouTubeIframeAPIReady = createPlayer;
     }, []);
-
+ 
+    
     // Load the YouTube IFrame API script when the component mounts
     useEffect(() => {
         loadYouTubeAPI();

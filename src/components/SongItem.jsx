@@ -2,6 +2,7 @@ import React from 'react';
 
 // Component for an individual song tile
 const SongItem = ({ song, index, isPlaying, onClick }) => {
+    
     // Dynamic styling based on whether the song is currently playing
     const statusClass = isPlaying
         ? 'border-cyan-500/50 bg-cyan-900/20 shadow-[0_0_15px_rgba(6,182,212,0.1)]'

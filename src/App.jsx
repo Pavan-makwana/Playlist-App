@@ -74,7 +74,6 @@ const App = () => {
 
     // --- 4.3. DATA FETCHING LOGIC ---
 
-    // FIX: Empty dependency array to ensure function stability and break the infinite loop
     const fetchBatch = useCallback(async (id, token = null) => {
         if (!YOUTUBE_API_KEY || YOUTUBE_API_KEY === "PASTE_YOUR_RESTRICTED_API_KEY_HERE") {
             console.error("FATAL ERROR: API Key is missing or default. Please check your .env file.");
@@ -114,7 +113,6 @@ const App = () => {
                 duration: item.contentDetails.endAt ? "Live" : item.contentDetails.duration ? parseDuration(item.contentDetails.duration) : "??:??"
             }));
 
-            // CRITICAL FIX: Use functional update for 'songs' to avoid dependency loop
             setSongs(prevSongs => {
                 const updatedSongs = token ? [...prevSongs, ...newSongs] : newSongs;
                 return updatedSongs;
@@ -126,7 +124,6 @@ const App = () => {
             // Play video only if it's the first batch being fetched
             if (!token && newSongs.length > 0) {
                 // Must use the latest playerState closure (which is why we keep it in deps for the linter,
-                // but the stability fix above is the primary loop breaker)
                 playerState.playVideo(0);
             }
 
@@ -136,8 +133,7 @@ const App = () => {
             setIsLoading(false);
         }
     }, [playerState]);
-    // IMPORTANT: The dependency [playerState] is technically needed for playerState.playVideo.
-    // The previous state update fixes break the loop, but this dependency must remain for correct playback.
+    
 
 
     // --- 4.4. LOCAL STORAGE PERSISTENCE (LOAD) ---
@@ -152,7 +148,6 @@ const App = () => {
                     const data = JSON.parse(savedProgress);
                     setPoints(data.points || 0);
 
-                    // FIX: ONLY load points and saved ID into the temporary state variable.
                     // DO NOT call fetchBatch here, forcing the InputForm to show first.
                     if (data.playlistId) {
                         setSavedPlaylistId(data.playlistId);
@@ -175,7 +170,7 @@ const App = () => {
         setIsLoading(true);
         loadInitialData();
 
-    }, []); // FIXED: Empty dependency array to run only once on mount
+    }, []); 
 
     // --- 4.5. LOCAL STORAGE PERSISTENCE (SAVE) ---
 
@@ -234,7 +229,7 @@ const App = () => {
     };
 
     // --- 4.6. RENDER LOGIC ---
-    // CONDITION FIX: InputForm is shown if songs are empty AND we are NOT loading.
+   
     const showInputForm = songs.length === 0 && !isLoading;
 
     return (

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 
-// Component for user input and initial loading
 const InputForm = ({ onPlaylistSubmit, isLoading }) => {
-    // Default ID for easy testing
+
     const [input, setInput] = useState('PLuJllDsJjN9LaDwTCzI_MIaJ0v4oz6xQX');
 
     const handleSubmit = (e) => {
@@ -11,7 +10,7 @@ const InputForm = ({ onPlaylistSubmit, isLoading }) => {
         if (input.length > 10) {
             onPlaylistSubmit(input.trim());
         } else {
-            // Using alert() is generally avoided, but for simple user feedback in a demo, it's quick.
+            
             alert('Error: Please enter a valid YouTube Playlist ID (e.g., PL...).');
         }
     };

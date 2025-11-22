@@ -9,6 +9,7 @@ const PlaylistView = ({ songs, visibleSongsLimit, onSongClick, currentSongIndex,
     const canUnlock = points >= COST_PER_SONG;
 
     // Only show songs up to the limit
+    
     const visibleSongs = songs.slice(0, visibleSongsLimit);
     const hasMoreSongs = visibleSongsLimit < maxSongs;
 
