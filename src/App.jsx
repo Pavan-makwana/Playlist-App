@@ -263,7 +263,7 @@ const App = () => {
 
             <header className="text-center mb-10 z-10 pointer-events-none">
                 <h1 className="text-5xl sm:text-6xl font-playfair font-bold tracking-wide text-slate-100 drop-shadow-lg">
-                    LUDIO
+                    Pa1's Audio Player
                 </h1>
                 <p className="text-cyan-400/80 mt-3 text-sm tracking-widest uppercase">
                     Natural Harmony Quest
