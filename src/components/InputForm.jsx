@@ -6,11 +6,26 @@ const InputForm = ({ onPlaylistSubmit, isLoading }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        let playlistId = input.trim();
+
+        // Check if input is a URL containing 'list='
+        if (playlistId.includes('list=')) {
+            const listParamIndex = playlistId.indexOf('list=');
+            const afterList = playlistId.substring(listParamIndex + 5);
+            const ampIndex = afterList.indexOf('&');
+
+            if (ampIndex !== -1) {
+                playlistId = afterList.substring(0, ampIndex);
+            } else {
+                playlistId = afterList;
+            }
+        }
+
         // Simple validation check
-        if (input.length > 10) {
-            onPlaylistSubmit(input.trim());
+        if (playlistId.length > 10) {
+            onPlaylistSubmit(playlistId);
         } else {
-            
             alert('Error: Please enter a valid YouTube Playlist ID (e.g., PL...).');
         }
     };
